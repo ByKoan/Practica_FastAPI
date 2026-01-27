@@ -1,17 +1,29 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
 
-class User (BaseModel):
-    id:int
-    nombre:str
-    apellido:str
-    direccion:Optional[str]
-    telefono:int
-    creacion_user:datetime=datetime.now()
+class User(BaseModel):
+    username: str
+    password: str
+    nombre: str
+    apellido: str
+    direccion: str
+    telefono: int
+    correo: str
 
-class UserId(BaseModel):
-    id:int
+class ShowUser(BaseModel):
+    username: str
+    nombre: str
+    correo: str
 
+    class Config:
+        orm_mode = True
 
-usuarios = []
+class UpdateUser(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    direccion: Optional[str] = None
+    telefono: Optional[int] = None
+    correo: Optional[str] = None
+    estado: Optional[bool] = None

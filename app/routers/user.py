@@ -1,10 +1,9 @@
-### Continuar pag 36
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
 
-
-from fastapi import APIRouter, Depends
-from app.schemas import User,UserId,usuarios
+from app.schemas import User, ShowUser, UpdateUser
 from app.db.database import get_db
-from sqlalchemy import Session
 from app.db import models
 
 router = APIRouter(
@@ -12,61 +11,48 @@ router = APIRouter(
     tags=["Users"]
 )
 
-@router.get("/ruta1")
-def ruta1():
-    return{"mensaje": "Hemos creado nuestra primera API!!"}
+@router.post("/")
+def crear_usuario(user: User, db: Session = Depends(get_db)):
+    nuevo_usuario = models.Usuario(**user.dict())
+    try:
+        db.add(nuevo_usuario)
+        db.commit()
+        db.refresh(nuevo_usuario)
+        return {"mensaje": "Usuario creado correctamente"}
+    except:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Usuario o correo ya existente")
 
-@router.get("/obtener_usuario")
-def ruta2(user:User):
-    print(user)
-    print(user.nombre)
-    print(user.model_dump())
-    return True
+@router.get("/", response_model=List[ShowUser])
+def obtener_usuarios(db: Session = Depends(get_db)):
+    return db.query(models.Usuario).all()
 
-@router.post("/crar_usuario")
-def crear_usuario(user:User):
-    usuario = user.model_dump()
-    usuarios.append(usuario)
-    return {"Respuesta": "Usuario creado!"}
+@router.get("/{id}", response_model=ShowUser)
+def obtener_usuario(id: int, db: Session = Depends(get_db)):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return usuario
 
-@router.get("/")
-def obtener_usuarios(db:Session=Depends(get_db)):
-    data=db.query(models.User).all()
-    print(data)
-    return usuarios
+@router.delete("/{id}")
+def eliminar_usuario(id: int, db: Session = Depends(get_db)):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-@router.get("/users/{user_id}")
-def obtener_usuario(user_id:int):
-    for user in usuarios:
-        if user["id"] == user_id:
-            print(user, type(user))
-            return user
-        return {"Respuesta": "Usuario no encontrado"}
-    
-@router.post("/userjson")
-def obtener_usuario_json(user_id:UserId):
-    for user in usuarios:
-        if user["id"] == user_id.id:
-            return{"usuario":user}
-        return{"respuesta":"Usuario no encontrado"}
-    
-@router.delete("/user/{user_id}")
-def eliminar_usuario(user_id:int):
-    for index,user in enumerate(usuarios):
-        if user["id"] == user_id:
-            print(index,user)
-            usuarios.pop(index)
-            return {"Respuesta": "Usuario eliminado correctamente"}
-        return {"Respuesta": "Usuario no encontrado"}
-       
-@router.put("/user/{user_id}")
-def actualizar_usuario(user_id:int, updateUser:User):
-    for index, user in enumerate(usuarios):
-        if user["id"] == user_id:
-            usuarios[index]["id"] = updateUser.model_dump()["id"]
-            usuarios[index]["nombre"] = updateUser.model_dump()["nombre"]
-            usuarios[index]["apellido"] = updateUser.model_dump()["apellido"]
-            usuarios[index]["direccion"] = updateUser.model_dump()["direccion"]
-            usuarios[index]["telefono"] = updateUser.model_dump()["telefono"]
-            return {"Respuesta": "Usuario actualizado correctamente"}
-    return {"Respuesta": "Usuario no encontrado"}
+    db.delete(usuario)
+    db.commit()
+    return {"mensaje": "Usuario eliminado"}
+
+@router.patch("/{id}")
+def actualizar_usuario(id: int, user: UpdateUser, db: Session = Depends(get_db)):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    for key, value in user.dict(exclude_unset=True).items():
+        setattr(usuario, key, value)
+
+    db.commit()
+    db.refresh(usuario)
+    return {"mensaje": "Usuario actualizado"}
