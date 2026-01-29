@@ -9,7 +9,8 @@ def create_tables():
 create_tables()
 
 app = FastAPI()
+
 app.include_router(user.router)
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=8000, reload=True)
+    uvicorn.run("main:app", port = 8000, reload = True)
